@@ -64,6 +64,9 @@ type Job struct {
 
 	// Map for function and  params of function
 	fparams map[string]([]interface{})
+
+	//unique id for timer.
+	jobId int64
 }
 
 // Create a new job with the time interval.
@@ -76,6 +79,7 @@ func NewJob(intervel uint64) *Job {
 		time.Sunday,
 		make(map[string]interface{}),
 		make(map[string]([]interface{})),
+		time.Now().Unix(),
 	}
 }
 
@@ -109,7 +113,7 @@ func getFunctionName(fn interface{}) string {
 
 // Specifies the jobFunc that should be called every time the job runs
 //
-func (j *Job) Do(jobFun interface{}, params ...interface{}) {
+func (j *Job) Do(uniqueId int64, jobFun interface{}, params ...interface{}) {
 	typ := reflect.TypeOf(jobFun)
 	if typ.Kind() != reflect.Func {
 		panic("only function can be schedule into the job queue.")
@@ -119,6 +123,11 @@ func (j *Job) Do(jobFun interface{}, params ...interface{}) {
 	j.funcs[fname] = jobFun
 	j.fparams[fname] = params
 	j.jobFunc = fname
+	if uniqueId == 0 {
+		j.jobId = time.Now().Unix()
+	} else {
+		j.jobId = uniqueId
+	}
 	//schedule the next run
 	j.scheduleNextRun()
 }
@@ -449,6 +458,26 @@ func (s *Scheduler) Remove(j interface{}) {
 	s.size = s.size - 1
 }
 
+// Remove specific job j
+func (s *Scheduler) RemoveById(j int64) {
+	i := 0
+	var jobMatched bool = false
+	for ; i < s.size; i++ {
+		if s.jobs[i].jobId == j {
+			jobMatched = true
+			break
+		}
+	}
+	if jobMatched == false {
+		return
+	}
+	for j := (i + 1); j < s.size; j++ {
+		s.jobs[i] = s.jobs[j]
+		i++
+	}
+	s.size = s.size - 1
+}
+
 // Delete all scheduled jobs
 func (s *Scheduler) Clear() {
 	for i := 0; i < s.size; i++ {
@@ -526,6 +555,11 @@ func Clear() {
 // Remove
 func Remove(j interface{}) {
 	defaultScheduler.Remove(j)
+}
+
+// Remove
+func RemoveById(id int64) {
+	defaultScheduler.RemoveById(id)
 }
 
 // NextRun gets the next running time
