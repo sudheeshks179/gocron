@@ -113,7 +113,7 @@ func getFunctionName(fn interface{}) string {
 
 // Specifies the jobFunc that should be called every time the job runs
 //
-func (j *Job) Do(uniqueId int64, jobFun interface{}, params ...interface{}) {
+func (j *Job) DoWithId(uniqueId int64, jobFun interface{}, params ...interface{}) {
 	typ := reflect.TypeOf(jobFun)
 	if typ.Kind() != reflect.Func {
 		panic("only function can be schedule into the job queue.")
@@ -128,6 +128,19 @@ func (j *Job) Do(uniqueId int64, jobFun interface{}, params ...interface{}) {
 	} else {
 		j.jobId = uniqueId
 	}
+	//schedule the next run
+	j.scheduleNextRun()
+}
+func (j *Job) Do(jobFun interface{}, params ...interface{}) {
+	typ := reflect.TypeOf(jobFun)
+	if typ.Kind() != reflect.Func {
+		panic("only function can be schedule into the job queue.")
+	}
+
+	fname := getFunctionName(jobFun)
+	j.funcs[fname] = jobFun
+	j.fparams[fname] = params
+	j.jobFunc = fname
 	//schedule the next run
 	j.scheduleNextRun()
 }
