@@ -67,6 +67,9 @@ type Job struct {
 
 	//unique id for timer.
 	jobId int64
+
+	//diff time zone for each timer
+	timeZone *time.Location
 }
 
 // Create a new job with the time interval.
@@ -80,6 +83,7 @@ func NewJob(intervel uint64) *Job {
 		make(map[string]interface{}),
 		make(map[string]([]interface{})),
 		time.Now().Unix(),
+		time.UTC,
 	}
 }
 
@@ -154,13 +158,13 @@ func (j *Job) At(t string) *Job {
 		panic("time format error.")
 	}
 	// time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
-	mock := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), int(hour), int(min), 0, 0, loc)
+	mock := time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day(), int(hour), int(min), 0, 0, j.timeZone)
 
 	if j.unit == "days" {
 		if time.Now().After(mock) {
 			j.lastRun = mock
 		} else {
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-1, hour, min, 0, 0, loc)
+			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-1, hour, min, 0, 0, j.timeZone)
 		}
 	} else if j.unit == "weeks" {
 		if time.Now().After(mock) {
@@ -168,9 +172,9 @@ func (j *Job) At(t string) *Job {
 			if i < 0 {
 				i = 7 + i
 			}
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), hour, min, 0, 0, loc)
+			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), hour, min, 0, 0, j.timeZone)
 		} else {
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-7, hour, min, 0, 0, loc)
+			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-7, hour, min, 0, 0, j.timeZone)
 		}
 	}
 	return j
@@ -184,7 +188,7 @@ func (j *Job) scheduleNextRun() {
 			if i < 0 {
 				i = 7 + i
 			}
-			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), 0, 0, 0, 0, loc)
+			j.lastRun = time.Date(time.Now().Year(), time.Now().Month(), time.Now().Day()-int(i), 0, 0, 0, 0, j.timeZone)
 
 		} else {
 			j.lastRun = time.Now()
@@ -213,6 +217,16 @@ func (j *Job) scheduleNextRun() {
 		}
 		j.nextRun = j.lastRun.Add(j.period * time.Second)
 	}
+}
+
+// Set timezone for timer
+func (j *Job) Zone(timeZone string) *Job {
+	recivedTimeZone, err := time.LoadLocation(timeZone)
+	if err != nil {
+		panic("time zone format error.")
+	}
+	j.timeZone = recivedTimeZone
+	return j
 }
 
 // the follow functions set the job's unit with seconds,minutes,hours...
